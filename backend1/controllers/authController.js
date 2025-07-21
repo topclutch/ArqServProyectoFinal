@@ -56,3 +56,47 @@ export const login = async (req, res) => {
     });
   }
 };
+
+export const register = async (req, res) => {
+  try {
+    const { name, email, password, role } = req.body
+    const existingUser = await User.findOne({ email })
+    if (existingUser) return res.status(400).json({ success: false, message: 'El usuario ya existe' })
+
+    const newUser = new User({ name, email, password, role: role || 'Vendedor' })
+    await newUser.save()
+
+    res.status(201).json({
+      success: true,
+      message: 'Usuario creado exitosamente',
+      user: newUser.toJSON()
+    })
+  } catch (error) {
+    res.status(500).json({ success: false, message: 'Error en el servidor', error: error.message })
+  }
+}
+
+export const getCurrentUser = async (req, res) => {
+  try {
+    const user = await User.findById(req.user.userId)
+      .select('-password -__v -createdAt -updatedAt');
+    
+    if (!user) {
+      return res.status(404).json({ 
+        success: false, 
+        message: 'Usuario no encontrado' 
+      });
+    }
+
+    res.json({
+      success: true,
+      data: user
+    });
+  } catch (error) {
+    res.status(500).json({ 
+      success: false, 
+      message: 'Error en el servidor', 
+      error: error.message 
+    });
+  }
+};
