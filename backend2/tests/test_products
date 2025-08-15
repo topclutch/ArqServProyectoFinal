@@ -1,0 +1,49 @@
+import pytest
+import json
+from app import app, init_database
+
+@pytest.fixture
+def client():
+    app.config['TESTING'] = True
+    with app.test_client() as client:
+        with app.app_context():
+            init_database()
+        yield client
+
+def test_health_endpoint(client):
+    """Test del endpoint de salud"""
+    response = client.get('/health')
+    assert response.status_code == 200
+    data = json.loads(response.data)
+    assert data['status'] == 'OK'
+
+def test_get_products(client):
+    """Test obtener lista de productos"""
+    response = client.get('/api/products')
+    assert response.status_code == 200
+    data = json.loads(response.data)
+    assert data['success'] is True
+    assert 'data' in data
+    assert isinstance(data['data'], list)
+
+def test_get_product_by_id(client):
+    """Test obtener producto por ID"""
+    response = client.get('/api/products/1')
+    assert response.status_code in [200, 404]
+    data = json.loads(response.data)
+    assert 'success' in data
+
+def test_create_product_without_auth(client):
+    """Test crear producto sin autenticación"""
+    product_data = {
+        'name': 'Test Product',
+        'price': 99.99,
+        'stock': 10,
+        'description': 'Test description',
+        'category': 'Test',
+        'image_url': 'https://example.com/image.jpg'
+    }
+    response = client.post('/api/products', 
+                          data=json.dumps(product_data),
+                          content_type='application/json')
+    assert response.status_code == 401
