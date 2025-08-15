@@ -1,0 +1,72 @@
+from flask import Blueprint, request, jsonify
+from services.product_service import (
+    get_all_products_service,
+    get_product_by_id_service,
+    create_product_service,
+    update_product_service,
+    delete_product_service,
+    decrease_stock_service  # Nueva función importada
+)
+
+product_bp = Blueprint('products', __name__, url_prefix='/api/products')
+
+@product_bp.route('', methods=['GET'])
+def get_all_products():
+    products = get_all_products_service()
+    return jsonify({'success': True, 'data': products}), 200
+
+@product_bp.route('/<int:product_id>', methods=['GET'])
+def get_product_by_id(product_id):
+    product = get_product_by_id_service(product_id)
+    if not product:
+        return jsonify({'success': False, 'message': 'Producto no encontrado'}), 404
+    return jsonify({'success': True, 'data': product}), 200
+
+@product_bp.route('', methods=['POST'])
+def create_product():
+    data = request.get_json() or {}
+    new_product = create_product_service(data)
+    return jsonify({'success': True, 'data': new_product}), 201
+
+@product_bp.route('/<int:product_id>', methods=['PUT'])
+def update_product(product_id):
+    data = request.get_json() or {}
+    updated = update_product_service(product_id, data)
+    if not updated:
+        return jsonify({'success': False, 'message': 'Producto no encontrado'}), 404
+    return jsonify({'success': True, 'data': updated}), 200
+
+@product_bp.route('/<int:product_id>', methods=['DELETE'])
+def delete_product(product_id):
+    deleted = delete_product_service(product_id)
+    if not deleted:
+        return jsonify({'success': False, 'message': 'Producto no encontrado'}), 404
+    return jsonify({'success': True, 'message': 'Producto eliminado'}), 200
+
+# Nueva ruta para disminuir stock
+@product_bp.route('/<int:product_id>/decrease-stock', methods=['PATCH'])
+def decrease_stock(product_id):
+    data = request.get_json() or {}
+    quantity = data.get('quantity')
+    
+    # Validar la cantidad
+    if not quantity or not isinstance(quantity, int) or quantity <= 0:
+        return jsonify({
+            'success': False,
+            'message': 'La cantidad debe ser un entero positivo'
+        }), 400
+
+    # Disminuir el stock
+    result, error = decrease_stock_service(product_id, quantity)
+    
+    if error:
+        return jsonify({
+            'success': False,
+            'message': error
+        }), 400 if "insuficiente" in error.lower() else 404
+    
+    return jsonify({
+        'success': True,
+        'data': result,
+        'message': f'Stock disminuido en {quantity} unidades'
+    }), 200
